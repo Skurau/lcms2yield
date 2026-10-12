@@ -123,4 +123,111 @@ This project is licensed under the Apache-2.0 License.
 
 
 ---
+# 使用方法
+**当前项目使用现成权重，根据分子的 SMILES 预测校正因子 CF，无需重新训练。** 
 
+固定使用：
+
+- 项目：`E:\CodexProjects\lcms2yield`
+- Python 环境：`D:\Anaconda3\envs\lcms2yield`
+- 工作目录：`E:\CodexProjects\lcms2yield\model`
+- 测试文件：`predict.py`
+
+**1. 在 Anaconda Prompt 中运行**
+
+```bat
+conda activate lcms2yield
+cd /d "E:\CodexProjects\lcms2yield\model"
+python -X utf8 predict.py
+```
+
+这会预测项目自带的两个分子。结果应接近此前实测值：
+
+```text
+preds CFs: {
+    'model_pth': './model_pth/20250721.pth',
+    'preds': array([1.1300694, 0.43467924], dtype=float32)
+}
+```
+
+`preds` 的顺序与输入 SMILES 顺序一致。**CF 是模型预测的校正因子，不是产率百分比。**
+
+**2. 在 VS Code 中运行**
+
+1. 打开文件夹 `E:\CodexProjects\lcms2yield`。
+2. 打开 `model\predict.py`，取消文字选中。
+3. 按 **Ctrl + Alt + N**，使用已经配置好的 Code Runner 运行。
+
+也可以使用 **Python: Run Python File in Terminal**，但应确认所选解释器是：
+
+```text
+D:\Anaconda3\envs\lcms2yield\python.exe
+```
+
+两种运行入口都已配置为从脚本所在目录启动。F5 调试使用另一套启动配置，目前这些设置不控制它。
+
+**3. 在 PowerShell 中直接运行**
+
+使用明确的解释器路径，可以不依赖 `conda activate`：
+
+```powershell
+Set-Location -LiteralPath 'E:\CodexProjects\lcms2yield\model'
+
+& 'D:\Anaconda3\envs\lcms2yield\python.exe' -X utf8 predict.py
+```
+
+**4. 预测自己的分子**
+
+在项目的 `model` 文件夹中新建一个独立脚本，例如 `run_example.py`：
+
+```python
+from rdkit import Chem
+from predict import predict_by_smiles_list
+
+
+def main() -> None:
+    # 将需要预测的分子放入同一个列表。
+    smiles_list = [
+        "CCO",       # 乙醇
+        "c1ccccc1",  # 苯
+    ]
+
+    if not smiles_list:
+        raise ValueError("SMILES 列表不能为空。")
+
+    # 先检查输入，避免原项目将无效 SMILES 转为空分子。
+    for smiles in smiles_list:
+        mol = Chem.MolFromSmiles(smiles)
+        if mol is None or mol.GetNumAtoms() == 0:
+            raise ValueError(f"无效或空的 SMILES：{smiles!r}")
+
+    result = predict_by_smiles_list(
+        smiles_list,
+        batch_size=32,
+        num_workers=0,
+    )
+
+    for smiles, cf in zip(smiles_list, result["preds"]):
+        print(f"{smiles}\t预测 CF：{float(cf):.6f}")
+
+
+if __name__ == "__main__":
+    main()
+```
+
+激活环境并进入 `model` 目录后，执行：
+
+```bat
+python -X utf8 run_example.py
+```
+
+这段代码展示自定义输入方式，乙醇和苯的具体预测数值尚未实测。
+
+**目前修改后的行为：**
+
+- 自动使用可用的 NVIDIA GPU；GPU 不可用时回退到 CPU。
+- Windows 默认 `num_workers=0`，避免启动多个进程重复导入依赖。
+- 两类警告已处理，正常预测不需要再添加 `-W` 过滤参数。
+- `checkpoint directory created`、`saving model version 0.0` 是普通日志，可能仍会显示。
+
+此前双分子示例总耗时约 **23–28 秒**，主要是依赖导入。多个分子放在同一个列表中批量预测，可以分摊这部分启动开销。
