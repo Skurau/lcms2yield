@@ -1,3 +1,5 @@
+import sys
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -199,10 +201,12 @@ class GPSLayer(nn.Module):
     def _sa_block(self, x, attn_mask, key_padding_mask):
         """Self-attention block.
         """
+        # Windows GPU 上请求注意力权重以避开 PyTorch 2.3 的 Flash 探测路径，权重随后丢弃。
         x = self.self_attn(x, x, x,
                            attn_mask=attn_mask,
                            key_padding_mask=key_padding_mask,
-                           need_weights=False)[0]
+                           need_weights=(sys.platform == 'win32' and x.is_cuda),
+                           average_attn_weights=False)[0]
         return x
 
     def _ff_block(self, x):

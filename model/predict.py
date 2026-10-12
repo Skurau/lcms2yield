@@ -1,3 +1,5 @@
+import sys
+
 import numpy as np
 import torch
 from torch_geometric.loader import DataLoader
@@ -7,9 +9,12 @@ from dataset.dataset import MolDataset
 
 def predict_by_smiles_list(SMILES_list, with_std=False, with_fea=False, 
                            model_pth = './model_pth/20250721.pth', 
-                           pred_num_for_std=30, batch_size=256):
+                           pred_num_for_std=30, batch_size=256, num_workers: int | None = None):
+    if num_workers is None:
+        # Windows 子进程会重复导入依赖，默认单进程以降低预测启动开销。
+        num_workers = 0 if sys.platform == "win32" else 4
     dataset = MolDataset(SMILES_list)
-    dataloader = DataLoader(dataset, batch_size=batch_size, num_workers=4, shuffle=False)
+    dataloader = DataLoader(dataset, batch_size=batch_size, num_workers=num_workers, shuffle=False)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     model = torch.load(model_pth, map_location=torch.device(device)) 
