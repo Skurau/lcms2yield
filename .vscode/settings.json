@@ -2,7 +2,7 @@
     "python.defaultInterpreterPath": "D:/Anaconda3/envs/lcms2yield/python.exe",
     "python.terminal.executeInFileDir": true,
     "code-runner.executorMap": {
-        "python": "D:/Anaconda3/envs/lcms2yield/python.exe -u"
+        "python": "D:/Anaconda3/envs/lcms2yield/python.exe -X utf8 -u"
     },
     "code-runner.fileDirectoryAsCwd": true
 }
